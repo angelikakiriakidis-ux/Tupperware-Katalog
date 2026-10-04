@@ -57,14 +57,17 @@ const S=JSON.parse(document.getElementById("state").textContent);
 const $=s=>document.querySelector(s),app=$("#app");
 let view="uebersicht",pg=1,draft=null,ask=false;
 let cart=[];try{cart=JSON.parse(localStorage.getItem("cart")||"[]")}catch(e){}
+let locRes=[],sent=false;try{locRes=JSON.parse(localStorage.getItem("res")||"[]")}catch(e){}
+const saveRes=()=>{try{localStorage.setItem("res",JSON.stringify(locRes))}catch(e){}};
 const saveCart=()=>{try{localStorage.setItem("cart",JSON.stringify(cart))}catch(e){}};
 const eur=n=>n.toFixed(2).replace(".",",")+" €";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const find=id=>S.items.find(i=>i.id===id);
-cart=cart.filter(find);
-const isRes=i=>i.reserved||cart.includes(i.id);
-function toggleCart(id){const i=find(id);if(i.reserved)return;cart=cart.includes(id)?cart.filter(x=>x!==id):[...cart,id];saveCart();render()}
-const cartBtn=i=>`<button class="btn ${cart.includes(i.id)?"sec":""}" data-cart="${i.id}" ${i.reserved?"disabled":""}>${i.reserved?"Reserviert":cart.includes(i.id)?"Aus dem Warenkorb":"In den Warenkorb"}</button>`;
+cart=cart.filter(find);locRes=locRes.filter(find);
+const lock=i=>i.reserved||locRes.includes(i.id);
+const isRes=i=>lock(i)||cart.includes(i.id);
+function toggleCart(id){const i=find(id);if(lock(i))return;sent=false;cart=cart.includes(id)?cart.filter(x=>x!==id):[...cart,id];saveCart();render()}
+const cartBtn=i=>`<button class="btn ${cart.includes(i.id)?"sec":""}" data-cart="${i.id}" ${lock(i)?"disabled":""}>${lock(i)?"Reserviert":cart.includes(i.id)?"Aus dem Warenkorb":"In den Warenkorb"}</button>`;
 function card(i){
   return `<article class="card ${isRes(i)?"res":""}"><div class="ph"><button class="phb" data-go="${i.id}" aria-label="Katalogblatt: ${esc(i.name)}"><img src="${i.img}" alt="${esc(i.name)}"></button><div class="stamp"><span>reserviert</span></div></div>
   <div class="in"><h3>${esc(i.name)}</h3><div class="mut">${esc(i.dim)}</div><div class="price">${eur(i.price)}</div>${cartBtn(i)}</div></article>`;
@@ -83,7 +86,7 @@ function vFlip(){
 function mailText(){const L=cart.map(find).filter(Boolean);return "Ich bin an folgenden Artikel interessiert:\n\n"+L.map(i=>`- ${i.name} (${i.dim}) – ${eur(i.price)}`).join("\n")+`\n\nSumme: ${eur(L.reduce((a,i)=>a+i.price,0))}`+(S.site?`\n\nZum Katalog: ${S.site}`:"")}
 function vCart(){
   const L=cart.map(find).filter(Boolean),sum=L.reduce((a,i)=>a+i.price,0);
-  if(!L.length)return `<h2>Warenkorb</h2><p>Der Warenkorb ist leer. Wähle Artikel in der <a href="#uebersicht">Übersicht</a> aus.</p>`;
+  if(!L.length)return `<h2>Warenkorb</h2>${sent?"<p><b>Danke für deine Anfrage!</b> Die angefragten Artikel bleiben für dich als reserviert markiert.</p>":""}<p>Der Warenkorb ist leer. Wähle Artikel in der <a href="#uebersicht">Übersicht</a> aus.</p>`;
   return `<div class="top"><h2>Warenkorb</h2><button class="btn sec" id="clr">Warenkorb löschen</button></div><table><tr><th></th><th>Artikel</th><th class="p">Preis</th><th></th></tr>${L.map(i=>`<tr><td><img src="${i.img}" alt=""></td><td>${esc(i.name)}<div class="mut">${esc(i.dim)}</div></td><td class="p">${eur(i.price)}</td><td><button class="btn sec" data-cart="${i.id}">Entfernen</button></td></tr>`).join("")}</table>
   <div class="sum">Summe: ${eur(sum)}</div>${ask?`<div class="mail"><b>Anfrage bearbeiten und senden</b><textarea id="body">${esc(draft)}</textarea><div><button class="btn blue" id="upd">Aktualisieren</button> <span class="note">übernimmt Änderungen am Warenkorb in den Text (eigene Textänderungen werden dabei ersetzt)</span></div><div class="row"><input id="ct" placeholder="Deine E-Mail-Adresse oder Telefonnummer"><button class="btn" id="smail">Per E-Mail senden</button><button class="btn blue" id="swa" ${S.wa?"":"disabled"}>Per WhatsApp senden</button></div><p class="note">Der Button öffnet dein E-Mail-Programm bzw. WhatsApp mit dem fertigen Text; dort schickst du die Nachricht ab.</p></div>`:`<div style="text-align:right"><button class="btn" id="ask">Anfrage senden</button></div>`}`;
 }
@@ -109,6 +112,7 @@ app.addEventListener("click",e=>{
     const c=$("#ct").value.trim(),b=$("#body").value+(c?"\n\n"+c:"");
     const u=t.id==="smail"?`mailto:${S.email}?subject=${encodeURIComponent("Anfrage Tupperware-Katalog")}&body=${encodeURIComponent(b)}`:`https://wa.me/${S.wa.replace(/\D/g,"")}?text=${encodeURIComponent(b)}`;
     window.open(u,"_blank");
+    locRes=[...new Set([...locRes,...cart])];saveRes();cart=[];saveCart();ask=false;draft=null;sent=true;render();
   }
 });
 route();
