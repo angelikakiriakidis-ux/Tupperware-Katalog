@@ -59,8 +59,11 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 const find=id=>S.items.find(i=>i.id===id);
 cart=cart.filter(find);
 const PH="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f4f6f9"/><text x="100" y="105" font-family="sans-serif" font-size="16" fill="#5b6478" text-anchor="middle">Bild folgt</text></svg>');
-const src=i=>"bilder/"+encodeURIComponent(i.file);
-const im=(i,alt)=>`<img src="${src(i)}" alt="${alt?esc(i.name):""}" loading="lazy" onerror="this.onerror=null;this.src='${PH}'">`;
+const EX=["jpg","png","jpeg","webp"];
+const base=i=>i.file.replace(/\.[^.]+$/,"");
+const src=i=>"bilder/"+encodeURIComponent(base(i))+".jpg";
+window.imgErr=el=>{const n=(+el.dataset.e||0)+1;if(n<EX.length){el.dataset.e=n;el.src="bilder/"+el.dataset.b+"."+EX[n]}else{el.onerror=null;el.src=PH}};
+const im=(i,alt)=>`<img src="${src(i)}" data-b="${encodeURIComponent(base(i))}" alt="${alt?esc(i.name):""}" loading="lazy" onerror="imgErr(this)">`;
 const cats=[...new Set(S.items.map(i=>i.cat))];
 /* Suche: tolerant (ein ähnliches Wort genügt) */
 const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g," ").replace(/ae/g,"a").replace(/oe/g,"o").replace(/ue/g,"u").trim();
